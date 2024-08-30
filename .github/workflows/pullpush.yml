@@ -63,5 +63,3 @@ jobs:
         echo 'step8: manifest create success ' ${push_image}
         docker manifest push ${push_image}
         echo 'step9: manifest push success ' ${push_image}
-
-        done
