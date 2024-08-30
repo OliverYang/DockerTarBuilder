@@ -1,0 +1,67 @@
+name: x86-64 Pull and Save Docker Image
+on:
+  workflow_dispatch:
+    inputs:
+      docker_image:
+        description: '请填写docker镜像名称'
+        required: true
+        default: 'python:2.7.18-slim'  # 设置默认的 Docker 镜像列表
+      push_image:
+        description: '请填写推送到docker-hub.gitee.work的manifest镜像地址'
+        required: true
+        default: 'docker-hub.gitee.work/gitee-poc/python:2.7.18-slim'
+      repo:
+        description: '请填写repo地址'
+        required: true
+        default: 'docker-hub.gitee.work'
+      user:
+        description: 'repo用户名'
+        required: true
+        default: 'gitee'
+      password:
+        description: 'repo密码'
+        required: true
+        default: 'gitee'
+
+jobs:
+  pull_and_package:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Clean up Docker to free space
+      run: |
+          docker system prune -a -f
+          docker volume prune -f
+
+    - name: Pull Docker Images and Push
+      run: |
+        docker login --username='${{ github.event.inputs.user }}' --password='${{ github.event.inputs.password }}' ${{ github.event.inputs.repo }}
+        echo 'step1: login docker-hub.gitee.work success'
+        image="${{ github.event.inputs.docker_image }}"
+        push_image="${{ github.event.inputs.push_image }}"
+        
+        docker pull "${image}" --platform "linux/amd64"
+        echo 'step2: pull amd64 image success' ${image}
+        docker tag ${image} ${push_image}-amd64
+        echo 'step3: tag amd64 image success ' ${push_image}-amd64
+        docker push ${push_image}-amd64
+        echo 'step4: push amd64 image success ' ${push_image}-amd64
+
+        docker rmi ${image}
+
+        docker pull ${image} --platform=arm64
+        echo 'step5: pull arm64 image success ' ${image}
+        docker tag ${image} ${push_image}-arm64
+        echo 'step6: tag arm64 image success ' ${push_image}-arm64
+        docker push ${push_image}-arm64
+        echo 'step7: push arm64 image success' ${push_image}-arm64
+
+        docker manifest create --amend ${push_image} --amend ${push_image}-amd64 --amend ${push_image}-arm64
+        echo 'step8: manifest create success ' ${push_image}
+        docker push ${push_image}
+        echo 'step9: manifest push success ' ${push_image}
+
+        done
